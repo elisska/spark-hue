@@ -1,7 +1,6 @@
-# spark-hue
-Spark notebook for Hue
+# Spark notebook for Hue
 
-This repository contains instructions about how to enabler Spark notebook in Hue.
+This repository contains instructions about how to enable Spark notebook in Hue.
 
 Tested on:
 * CDH 5.5.1 with parcels
