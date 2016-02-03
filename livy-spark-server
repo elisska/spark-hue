@@ -1,0 +1,80 @@
+#!/bin/bash
+#
+# init script for the Livy Spark Server (Spark-Hue integration).
+#
+# chkconfig: 2345 90 10
+# description: Livy server.
+
+### BEGIN INIT INFO
+# Provides: livy-spark-server
+# Should-Start: cloudera-scm-agent
+# Required-Start:
+# Required-Stop:
+# Default-Start: 3 4 5
+# Default-Stop: 0 1 2 6
+# Short-Description: Livy Spark Server
+# Description: 
+### END INIT INFO
+
+# Source function library.
+. /etc/init.d/functions
+
+RETVAL=0
+PROG="livy-spark-server"
+LOCKFILE=/var/lock/subsys/$PROG
+PIDFILE=/var/run/livy-spark-server.pid
+LOGFILE=/var/log/hue/livy-spark-server.log
+PARAMFILE=/var/log/hue/livy-spark-server.param
+
+# Declare variables for Livy Spark Server
+export HUE_HOME=/opt/cloudera/parcels/CDH/lib/hue
+export HUE_CONF_DIR="/var/run/cloudera-scm-agent/process/`ls -alrt /var/run/cloudera-scm-agent/process | grep HUE | tail -1 | awk '{print $9}'`"
+export HUE_SECRET_KEY=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1`
+export HADOOP_CONF_DIR=/etc/hadoop/conf
+export YARN_CONF_DIR=$HADOOP_CONF_DIR
+export SPARK_HOME=/opt/cloudera/parcels/CDH/lib/spark
+
+echo "HUE_CONF_DIR=$HUE_CONF_DIR" > $PARAMFILE
+echo "HUE_SECRET_KEY=$HUE_SECRET_KEY" >> $PARAMFILE
+
+case "$1" in
+    start)
+        echo -n "Starting $PROG... "
+	nohup $HUE_HOME/build/env/bin/hue livy_server >> $LOGFILE 2>&1 &
+        RETVAL=$? && echo $! > $PIDFILE
+        [ $RETVAL -eq 0 ] && [ -e $PIDFILE ] && touch $LOCKFILE
+        echo "OK"
+        ;;
+    stop)
+        echo -n "Shutting down $PROG... "
+        kill `cat $PIDFILE`
+        RETVAL=$?
+        if [ $RETVAL -eq 0 ] && rm -f $LOCKFILE && rm -f $PIDFILE
+   	  then
+		echo "$PROG stopped successfully!"
+	else
+		echo "Error while stopping $PROG. Exit code: $RETVAL"
+	fi	
+        ;;
+    reload|restart)
+        $0 stop
+        $0 start
+        ;;
+    status)
+        if [ -f $PIDFILE ]; then
+            PID=`cat $PIDFILE`
+            if [ -z "`ps axf | grep ${PID} | grep -v grep`" ]; then
+                echo "$PROG is dead but pidfile $PIDFILE exists"
+            else
+                echo "$PROG is running"
+            fi
+        else
+            echo "$PROG is not running"
+        fi
+        ;;
+    *)
+        echo "Usage: `basename $0` start|stop|status|restart|reload"
+        exit 1
+esac
+
+exit $RETVAL
